@@ -1,4 +1,5 @@
 #include<ros/ros.h>
+#include<cmath>
 #include<sensor_msgs/PointCloud2.h>
 #include<iostream>
 #include<Eigen/Eigen>
@@ -10,6 +11,17 @@
 #include<sensor_msgs/point_cloud2_iterator.h>
 using namespace std;
 using namespace Eigen;
+template<typename T>
+T rad2deg(T radians)
+{
+  return radians * 180.0 / M_PI;
+}
+
+template<typename T>
+T deg2rad(T degrees)
+{
+  return degrees * M_PI / 180.0;
+}
 void lidar_callback(const sensor_msgs::PointCloud2ConstPtr& msg){
     // cout<<msg->header.frame_id<<endl;
     // if(msg->is_bigendian) cout<<"bigendian"<<"  ";
