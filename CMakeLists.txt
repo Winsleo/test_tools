@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.0.2)
 project(test_tools)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -12,10 +12,16 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   sensor_msgs
   tf2_ros
+  tf2
+  message_generation
+  dynamic_reconfigure
 )
 find_package(PCL REQUIRED)
 find_package(Eigen3 REQUIRED)
-
+#add dynamic reconfigure api
+generate_dynamic_reconfigure_options(
+ cfg/DeltaExt.cfg
+)
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -40,6 +46,7 @@ catkin_package(
 ## Your package locations should be listed before other locations
 
 include_directories(
+    include
     ${catkin_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
@@ -60,10 +67,21 @@ link_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node src/test_tools.cpp)
-
+add_dependencies(${PROJECT_NAME}_node 
+${catkin_EXPORTED_TARGETS}
+${PROJECT_NAME}_gencfg)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )
 
+add_executable(set_default_param src/set_default_param.cpp)
+add_dependencies(set_default_param 
+${catkin_EXPORTED_TARGETS}
+${PROJECT_NAME}_gencfg)
+## Specify libraries to link a library or executable target against
+target_link_libraries(set_default_param
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)

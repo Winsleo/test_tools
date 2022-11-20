@@ -1,0 +1,15 @@
+<launch>
+    <!-- Subscribed topics --> 
+    <node pkg="test_tools" type="test_tools_node" name="test_tools"  output="screen" required="true">
+        <param name="pointcloud_topic" type="string" value= "/rslidar_points" />
+        <rosparam>
+            Rot: [3.3876939304536846e-01, 2.0411991267696605e-02, 9.4064799417643996e-01,
+                  -9.4086852267540699e-01, 8.7436721632269121e-03, 3.3865907818291047e-01,
+                  -1.3120115354801065e-03, -9.9975341900370074e-01, 2.2167088580625049e-02]
+            Trans: [0.16, 0.105, -0.095]
+        </rosparam>
+    </node>
+    <node pkg="test_tools" type="set_default_param" name="set_default_param"  output="screen" required="true"/>
+    <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find test_tools)/launch/show.rviz" />
+    <node name="reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+ </launch>
