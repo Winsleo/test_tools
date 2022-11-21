@@ -22,9 +22,12 @@ void SigHandle(int sig)
     scope_color(ANSI_COLOR_CYAN_BOLD);
 	std::cout<<"========================================="<<std::endl;
     std::cout<<"Modified extrinsic matrix:"<<std::endl;
-	std::cout<< extrinsic.matrix() <<std::endl;
+    auto mat=extrinsic.matrix();
+	std::cout<< "["<<mat(0,0)<<", "<<mat(0,1)<<", "<<mat(0,2) <<std::endl;
+    std::cout<<mat(1,0)<<", "<<mat(1,1)<<", "<<mat(1,2) <<std::endl;
+    std::cout<<mat(2,0)<<", "<<mat(2,1)<<", "<<mat(2,2) <<"]"<<std::endl;
 	std::cout<<"Euler angles(RPY): "<< extrinsic.matrix().block<3,3>(0,0).eulerAngles(0,1,2).transpose() <<std::endl;
-	std::cout<<"Translation(XYZ):    "<< extrinsic.matrix()(0,3)<<"   "<<extrinsic.matrix()(1,3)<<"   "<<extrinsic.matrix()(2,3) <<std::endl;
+	std::cout<<"Translation(XYZ):   ["<< extrinsic.matrix()(0,3)<<", "<<extrinsic.matrix()(1,3)<<", "<<extrinsic.matrix()(2,3) <<"]"<<std::endl;
 	std::cout<<"========================================="<<std::endl;
 	cout<<ANSI_COLOR_RESET;
 }
