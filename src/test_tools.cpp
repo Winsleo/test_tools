@@ -4,10 +4,16 @@
 #include"tools.hpp"
 #include"tools_thread_pool.hpp"
 #include<tf2_ros/transform_broadcaster.h>
+#include<tf2_ros/buffer.h>
+#include<tf2_ros/transform_listener.h>
 #include<tf2/LinearMath/Matrix3x3.h>
 #include<tf2/LinearMath/Transform.h>
 #include<tf2_eigen/tf2_eigen.h>
-#include <csignal>  
+#include<csignal>  
+#include<cv_bridge/cv_bridge.h>
+#include<opencv2/opencv.hpp>
+#include<sensor_msgs/CompressedImage.h>
+#include<geometry_msgs/TransformStamped.h>
 //dynamic reconfigure includes
 #include <dynamic_reconfigure/server.h>
 #include <test_tools/DeltaExtConfig.h>
@@ -16,9 +22,15 @@ using namespace Eigen;
 Eigen::Isometry3d extrinsic_init;
 Eigen::Isometry3d extrinsic;
 // std::shared_ptr<Common_tools::ThreadPool> thread_pool_ptr;
+std::shared_ptr<tf2_ros::Buffer> tf_buffer;
+std::shared_ptr<std::ofstream> outfile;
+string pointcloud_topic,image_topic,compressed_topic,outfile_path;
+string father_frame_id("father");
+string child_frame_id("child");
+string map_frame_id;
+string camera_frame_id;
 void SigHandle(int sig)
 {
-	std::cout.precision(10);//设置输出精度
     scope_color(ANSI_COLOR_CYAN_BOLD);
 	std::cout<<"========================================="<<std::endl;
     std::cout<<"Modified extrinsic matrix:"<<std::endl;
@@ -30,8 +42,9 @@ void SigHandle(int sig)
 	std::cout<<"Translation(XYZ):   ["<< extrinsic.matrix()(0,3)<<", "<<extrinsic.matrix()(1,3)<<", "<<extrinsic.matrix()(2,3) <<"]"<<std::endl;
 	std::cout<<"========================================="<<std::endl;
 	cout<<ANSI_COLOR_RESET;
+    outfile->close();
 }
-void lidar_callback(const sensor_msgs::PointCloud2ConstPtr& msg){
+void lidarCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
     pointcloud_print(msg, ROBOSENSE, 1000);
 }
 void tfRegistration(const Eigen::Isometry3d &ext, const ros::Time &timeStamp,const string& frame_id,const string& child_frame_id)
@@ -44,7 +57,6 @@ void tfRegistration(const Eigen::Isometry3d &ext, const ros::Time &timeStamp,con
 	broadcaster.sendTransform(geometry_tf);
 }
 void reconfigure_callback(test_tools::DeltaExtConfig& config) {
-    cout.precision(10);//设置cout的数字输出有效位数
     if(config.inverse){
         /*
         外参求逆
@@ -61,14 +73,60 @@ void reconfigure_callback(test_tools::DeltaExtConfig& config) {
         extrinsic.rotate(delta);
     }
 }
-string father_frame_id("world");
-string child_frame_id("baselink");
+void ImageCallback(const sensor_msgs::ImageConstPtr &msg){
+    if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
+    cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
+    double timestamp = msg->header.stamp.toSec();
+    geometry_msgs::TransformStamped transform;
+    try
+    {
+        transform = tf_buffer->lookupTransform(map_frame_id, camera_frame_id, msg->header.stamp);
+    }
+    catch (tf2::TransformException ex)
+    {
+        ROS_ERROR("%s", ex.what());
+        return;
+    }
+    (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
+    transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
+    cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
+}
+void CompressedCallback(const sensor_msgs::CompressedImageConstPtr &msg)
+{
+    if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
+    cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
+    double timestamp = msg->header.stamp.toSec();
+    geometry_msgs::TransformStamped transform;
+    try
+    {
+        transform = tf_buffer->lookupTransform(map_frame_id, camera_frame_id, msg->header.stamp);
+    }
+    catch (tf2::TransformException ex)
+    {
+        ROS_ERROR("%s", ex.what());
+        return;
+    }
+    (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
+    transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
+    cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
+}
+
 int main(int argc, char **argv)
 {
+	std::cout.precision(20);//设置输出精度
+
     ros::init(argc,argv,"test"); 
     ros::NodeHandle nh("~");
-    string pointcloud_topic;
+    tf_buffer=make_shared<tf2_ros::Buffer>();
+    tf2_ros::TransformListener tf_listener(*tf_buffer);
+    nh.param<string>("map_frame_id",map_frame_id,"map");
+    nh.param<string>("camera_frame_id",camera_frame_id,"camera_link");
     nh.param<string>("pointcloud_topic",pointcloud_topic,"/rslidar_points");
+    nh.param<string>("image_topic",image_topic,"/image_raw");
+    nh.param<string>("compressed_topic",compressed_topic,"/image_raw/compressed");
+    nh.param<string>("outfile_path",outfile_path,"./");
+    outfile = make_shared<std::ofstream>(outfile_path+"pose.csv", std::ios::out | std::ios::trunc);
+    (*outfile)<<"timestamp"<<","<<"x"<<","<<"y"<<","<<"z"<<","<<"qx"<<","<<"qy"<<","<<"qz"<<","<<"qw"<<endl;
     vector<double> vec_rot;
     vector<double> vec_trans;
     Eigen::Matrix3d rot_init;
@@ -82,7 +140,9 @@ int main(int argc, char **argv)
     extrinsic_init=Eigen::Isometry3d::Identity();//欧式变换矩阵
     extrinsic_init.rotate(rot_init);//用旋转矩阵设置欧式变换矩阵的旋转部分
     extrinsic_init.pretranslate(trans_init);//设置欧式变换矩阵的平移部分
-    ros::Subscriber sub = nh.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic, 2, &lidar_callback);
+    ros::Subscriber lidar_sub = nh.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic, 2, &lidarCallback);
+    ros::Subscriber image_sub = nh.subscribe<sensor_msgs::Image>(image_topic, 50, &ImageCallback);
+    ros::Subscriber compressed_sub = nh.subscribe<sensor_msgs::CompressedImage>(compressed_topic, 50, &CompressedCallback);
     //动态参数服务器
 	dynamic_reconfigure::Server<test_tools::DeltaExtConfig> server;
 	dynamic_reconfigure::Server<test_tools::DeltaExtConfig>::CallbackType server_callback = boost::bind(&reconfigure_callback, _1);

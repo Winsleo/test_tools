@@ -1,7 +1,18 @@
 <launch>
+    <arg name="map_frame_id" default="odom"/>
+    <arg name="camera_frame_id" default="camera_link"/>
     <!-- Subscribed topics --> 
+    <arg name="pointcloud_topic" default="/pointscloud"/>
+    <arg name="image_topic" default="/image"/>
+    <arg name="compressed_topic" default="/flir_adk/image_raw/compressed"/>
+
     <node pkg="test_tools" type="test_tools_node" name="test_tools"  output="screen" required="true">
-        <param name="pointcloud_topic" type="string" value= "/rslidar_points" />
+        <param name="map_frame_id" type="string" value= "$(arg map_frame_id)" />
+        <param name="camera_frame_id" type="string" value= "$(arg camera_frame_id)" />
+        <param name="pointcloud_topic" type="string" value= "$(arg pointcloud_topic)" />
+        <param name="image_topic" type="string" value= "$(arg image_topic)" />
+        <param name="compressed_topic" type="string" value= "$(arg compressed_topic)" />
+        <param name="outfile_path" type="string" value="$(find test_tools)/result/"/>
         <rosparam>
             Rot: [3.3876939304536846e-01, 2.0411991267696605e-02, 9.4064799417643996e-01,
                   -9.4086852267540699e-01, 8.7436721632269121e-03, 3.3865907818291047e-01,

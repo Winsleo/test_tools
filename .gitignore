@@ -1,1 +1,3 @@
 .vscode
+image/*
+result/pose.csv
