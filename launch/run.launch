@@ -1,10 +1,20 @@
 <launch>
-    <arg name="map_frame_id" default="odom"/>
+    <!-- 世界坐标系名称 -->
+    <arg name="map_frame_id" default="world"/>
+    <!-- IMU坐标系名称 -->
+    <arg name="IMU_frame_id" default="aft_mapped"/>
+    <!-- 相机坐标系名称 -->
     <arg name="camera_frame_id" default="camera_link"/>
-    <!-- Subscribed topics --> 
+    
+    <!-- Subscribed topics -->
+    <!--雷达点云话题  -->
     <arg name="pointcloud_topic" default="/pointscloud"/>
+    <!-- 原始图像话题 -->
     <arg name="image_topic" default="/image"/>
+    <!-- 压缩图像话题 -->
     <arg name="compressed_topic" default="/flir_adk/image_raw/compressed"/>
+    <!-- 发布相机到IMU的坐标转换 -->
+    <node pkg="tf2_ros" name="tf_pub" type="static_transform_publisher" args="0.20, 0.15, 0.06 2.06298 -3.14159  1.56207 $(arg IMU_frame_id) $(arg camera_frame_id)" />
 
     <node pkg="test_tools" type="test_tools_node" name="test_tools"  output="screen" required="true">
         <param name="map_frame_id" type="string" value= "$(arg map_frame_id)" />
@@ -13,6 +23,7 @@
         <param name="image_topic" type="string" value= "$(arg image_topic)" />
         <param name="compressed_topic" type="string" value= "$(arg compressed_topic)" />
         <param name="outfile_path" type="string" value="$(find test_tools)/result/"/>
+        <!-- 需要调整的外参初始值 -->
         <rosparam>
             Rot: [3.3876939304536846e-01, 2.0411991267696605e-02, 9.4064799417643996e-01,
                   -9.4086852267540699e-01, 8.7436721632269121e-03, 3.3865907818291047e-01,
