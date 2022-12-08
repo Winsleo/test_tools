@@ -1,6 +1,8 @@
 #include<ros/ros.h>
 #include<pcl/common/eigen.h>
-#include<pcl/conversions.h>
+#include<pcl/io/pcd_io.h>
+#include<pcl/point_cloud.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include"tools.hpp"
 #include"tools_thread_pool.hpp"
 #include<tf2_ros/transform_broadcaster.h>
@@ -29,8 +31,20 @@ string father_frame_id("father");
 string child_frame_id("child");
 string map_frame_id;
 string camera_frame_id;
+int lidar_type;
+bool print_cloud;
+bool save_pose_image;
+bool save_pcd;
+bool flg_exit = false;
+shared_ptr<pcl::PointCloud<robosense_ros::Point>> pcl_wait_save1;
+shared_ptr<pcl::PointCloud<velodyne_ros::Point>> pcl_wait_save2;
+shared_ptr<pcl::PointCloud<ouster_ros::Point>> pcl_wait_save3;
+shared_ptr<pcl::PointCloud<pcl::PointXYZI>> pcl_wait_save4;
+shared_ptr<pcl::PointCloud<pcl::PointXYZINormal>> pcl_wait_save5;
+
 void SigHandle(int sig)
 {
+    flg_exit = true;
     scope_color(ANSI_COLOR_CYAN_BOLD);
 	std::cout<<"========================================="<<std::endl;
     std::cout<<"Modified extrinsic matrix:"<<std::endl;
@@ -45,7 +59,49 @@ void SigHandle(int sig)
     outfile->close();
 }
 void lidarCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
-    pointcloud_print(msg, ROBOSENSE, 1000);
+    if(save_pcd){
+        switch (lidar_type)
+        {
+        case ROBOSENSE:
+        {
+            pcl::PointCloud<robosense_ros::Point> laserCloud;
+            pcl::fromROSMsg(*msg, laserCloud);
+            *pcl_wait_save1 += laserCloud;
+            break;
+        }
+        case VELODYNE:
+        {
+            pcl::PointCloud<velodyne_ros::Point> laserCloud;
+            pcl::fromROSMsg(*msg, laserCloud);
+            *pcl_wait_save2 += laserCloud;
+            break;
+        }
+        case OUSTER:
+        {
+            pcl::PointCloud<ouster_ros::Point> laserCloud;
+            pcl::fromROSMsg(*msg, laserCloud);
+            *pcl_wait_save3 += laserCloud;
+            break;
+        }
+        case XYZI:
+        {
+            pcl::PointCloud<pcl::PointXYZI> laserCloud;
+            pcl::fromROSMsg(*msg, laserCloud);
+            *pcl_wait_save4 += laserCloud;
+            break;
+        }
+        case XYZINORMAL:
+        {
+            pcl::PointCloud<pcl::PointXYZINormal> laserCloud;
+            pcl::fromROSMsg(*msg, laserCloud);
+            *pcl_wait_save5 += laserCloud;
+            break;
+        }
+        default:
+            break;
+        }
+    }
+    if(print_cloud) pointcloud_print(msg, lidar_type, 1000);
 }
 void tfRegistration(const Eigen::Isometry3d &ext, const ros::Time &timeStamp,const string& frame_id,const string& child_frame_id)
 {
@@ -74,41 +130,45 @@ void reconfigure_callback(test_tools::DeltaExtConfig& config) {
     }
 }
 void ImageCallback(const sensor_msgs::ImageConstPtr &msg){
-    if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
-    cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
-    double timestamp = msg->header.stamp.toSec();
-    geometry_msgs::TransformStamped transform;
-    try
-    {
-        transform = tf_buffer->lookupTransform(map_frame_id, camera_frame_id, msg->header.stamp);
+    if(save_pose_image){
+        if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
+        cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
+        double timestamp = msg->header.stamp.toSec();
+        geometry_msgs::TransformStamped transform;
+        try
+        {
+            transform = tf_buffer->lookupTransform(map_frame_id, camera_frame_id, msg->header.stamp);
+        }
+        catch (tf2::TransformException ex)
+        {
+            ROS_ERROR("%s", ex.what());
+            return;
+        }
+        (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
+        transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
+        cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
     }
-    catch (tf2::TransformException ex)
-    {
-        ROS_ERROR("%s", ex.what());
-        return;
-    }
-    (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
-    transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
-    cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
 }
 void CompressedCallback(const sensor_msgs::CompressedImageConstPtr &msg)
 {
-    if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
-    cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
-    double timestamp = msg->header.stamp.toSec();
-    geometry_msgs::TransformStamped transform;
-    try
-    {
-        transform = tf_buffer->lookupTransform(map_frame_id, camera_frame_id, msg->header.stamp);
+    if(save_pose_image){
+        if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
+        cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
+        double timestamp = msg->header.stamp.toSec();
+        geometry_msgs::TransformStamped transform;
+        try
+        {
+            transform = tf_buffer->lookupTransform(map_frame_id, camera_frame_id, msg->header.stamp);
+        }
+        catch (tf2::TransformException ex)
+        {
+            ROS_ERROR("%s", ex.what());
+            return;
+        }
+        (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
+        transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
+        cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
     }
-    catch (tf2::TransformException ex)
-    {
-        ROS_ERROR("%s", ex.what());
-        return;
-    }
-    (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
-    transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
-    cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
 }
 
 int main(int argc, char **argv)
@@ -125,6 +185,42 @@ int main(int argc, char **argv)
     nh.param<string>("image_topic",image_topic,"/image_raw");
     nh.param<string>("compressed_topic",compressed_topic,"/image_raw/compressed");
     nh.param<string>("outfile_path",outfile_path,"./");
+    nh.param<bool>("save_pose_image", save_pose_image, false);
+    nh.param<bool>("save_pcd", save_pcd, false);
+    nh.param<bool>("print_cloud", print_cloud, false);
+    nh.param<int>("lidar_type", lidar_type, 1);
+    if(save_pcd){
+        switch (lidar_type)
+        {
+        case ROBOSENSE:
+        {
+            pcl_wait_save1.reset( new pcl::PointCloud<robosense_ros::Point>() );
+            break;
+        }
+        case VELODYNE:
+        {
+            pcl_wait_save2.reset( new pcl::PointCloud<velodyne_ros::Point>() );
+            break;
+        }
+        case OUSTER:
+        {
+            pcl_wait_save3.reset( new pcl::PointCloud<ouster_ros::Point>() );
+            break;
+        }
+        case XYZI:
+        {
+            pcl_wait_save4.reset( new pcl::PointCloud<pcl::PointXYZI>() );
+            break;
+        }
+        case XYZINORMAL:
+        {
+            pcl_wait_save5.reset( new pcl::PointCloud<pcl::PointXYZINormal>() );
+            break;
+        }
+        default:
+            break;
+        }
+    }
     outfile = make_shared<std::ofstream>(outfile_path+"pose.csv", std::ios::out | std::ios::trunc);
     (*outfile)<<"timestamp"<<","<<"x"<<","<<"y"<<","<<"z"<<","<<"qx"<<","<<"qy"<<","<<"qz"<<","<<"qw"<<endl;
     vector<double> vec_rot;
@@ -153,9 +249,47 @@ int main(int argc, char **argv)
     // thread_pool_ptr->commit_task(&tf_register_thread);
     ros::Rate rate(10);
     while(ros::ok()){
+        if(flg_exit) break;
         ros::spinOnce();
         tfRegistration(extrinsic,ros::Time::now(),father_frame_id,child_frame_id);
         rate.sleep();
+    }
+    /**************** save map ****************/
+    if(save_pcd){
+        string file_name = string("scans.pcd");
+        string all_points_dir(outfile_path  + file_name);
+        pcl::PCDWriter pcd_writer;
+        cout << "current scan saved to /PCD/" << file_name<<endl;
+        switch (lidar_type)
+        {
+        case ROBOSENSE:
+        {
+            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save1);
+            break;
+        }
+        case VELODYNE:
+        {
+            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save2);
+            break;
+        }
+        case OUSTER:
+        {
+            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save3);
+            break;
+        }
+        case XYZI:
+        {
+            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save4);
+            break;
+        }
+        case XYZINORMAL:
+        {
+            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save5);
+            break;
+        }
+        default:
+            break;
+        }
     }
     
     return 0;

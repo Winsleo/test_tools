@@ -6,10 +6,78 @@
 #include"tools_color_printf.hpp"
 #include<sensor_msgs/PointCloud2.h>
 #include<sensor_msgs/point_cloud2_iterator.h>
+#include<pcl/point_types.h>
 #define VEC3_FROM_ARRAY(v)  v[0],v[1],v[2]
 #define MAT3_FROM_ARRAY(v)  v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8]
 #define MAT4_FROM_ARRAY(v)  v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10].v[11],v[12],v[13],v[14],v[15]
-enum CLOUD_TYPE{ROBOSENSE = 1, VELODYNE, OUSTER, LIVOX, XYZINORMAL}; //{1, 2, 3 ,4}
+enum CLOUD_TYPE{ROBOSENSE = 1, VELODYNE, OUSTER, XYZI, XYZINORMAL}; //{1, 2, 3 ,4, 5}
+namespace velodyne_ros {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float intensity;
+      float time;
+      std::uint16_t ring;
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace velodyne_ros
+POINT_CLOUD_REGISTER_POINT_STRUCT(velodyne_ros::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, intensity, intensity)
+    (float, time, time)
+    (std::uint16_t, ring, ring)
+)
+
+namespace ouster_ros {
+  struct EIGEN_ALIGN16 Point {
+      PCL_ADD_POINT4D;
+      float intensity;
+      std::uint32_t t;
+      std::uint16_t reflectivity;
+      std::uint8_t  ring;
+      std::uint16_t ambient;
+      std::uint32_t range;
+      EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+  };
+}  // namespace ouster_ros
+
+// clang-format off
+POINT_CLOUD_REGISTER_POINT_STRUCT(ouster_ros::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    (float, intensity, intensity)
+    // use std::uint32_t to avoid conflicting with pcl::uint32_t
+    (std::uint32_t, t, t)
+    (std::uint16_t, reflectivity, reflectivity)
+    (std::uint8_t, ring, ring)
+    (std::uint16_t, ambient, ambient)
+    (std::uint32_t, range, range)
+)
+
+//ANCHOR robosense modify
+namespace robosense_ros {
+    struct EIGEN_ALIGN16 Point {
+        PCL_ADD_POINT4D;
+        std::uint8_t intensity;
+        std::uint16_t ring;
+        double timestamp;
+        EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+    };
+}
+
+// namespace robosense_ros
+POINT_CLOUD_REGISTER_POINT_STRUCT(robosense_ros::Point,
+    (float, x, x)
+    (float, y, y)
+    (float, z, z)
+    // use std::uint32_t to avoid conflicting with pcl::uint32_t
+    (std::uint8_t, intensity, intensity)
+    (std::uint16_t, ring, ring)
+    (double, timestamp, timestamp)
+)
+
 template<typename T>
 T rad2deg(T radians)
 {
@@ -42,6 +110,7 @@ inline Eigen::Matrix3d euler2matrix(const Eigen::Matrix<T,3,1> &eulerAngles){
           Eigen::AngleAxisd(eulerAngles[2],axisXYZ[axis2]);
     return res;
 }
+
 void pointcloud_print(const sensor_msgs::PointCloud2ConstPtr& msg, int cloudType,int filterNum){
     scope_color(ANSI_COLOR_CYAN_BOLD);
     std::cout<<msg->header.frame_id<<endl;

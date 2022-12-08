@@ -1,10 +1,18 @@
 <launch>
+    <!-- 是否保存相机的位姿和图片，用于重建 -->
+    <arg name="save_pose_image" default="false"/>
+    <!-- 是否保存点云PCD文件 -->
+    <arg name="save_pcd" default="false"/>
     <!-- 世界坐标系名称 -->
     <arg name="map_frame_id" default="world"/>
     <!-- IMU坐标系名称 -->
     <arg name="IMU_frame_id" default="aft_mapped"/>
     <!-- 相机坐标系名称 -->
     <arg name="camera_frame_id" default="camera_link"/>
+    <!-- 是否打印点云内容 -->
+    <arg name="print_cloud" default="false"/>
+    <!-- 雷达类型 ROBOSENSE = 1, VELODYNE=2, OUSTER=3,XYZI=4, XYZINORMAL=5 -->
+    <arg name="lidar_type" default="4"/>
     
     <!-- Subscribed topics -->
     <!--雷达点云话题  -->
@@ -23,6 +31,10 @@
         <param name="image_topic" type="string" value= "$(arg image_topic)" />
         <param name="compressed_topic" type="string" value= "$(arg compressed_topic)" />
         <param name="outfile_path" type="string" value="$(find test_tools)/result/"/>
+        <param name="save_pose_image" type="bool" value="$(arg save_pose_image)"/>
+        <param name="save_pcd" type="bool" value="$(arg save_pcd)"/>
+        <param name="print_cloud" type="bool" value="$(arg print_cloud)"/>
+        <param name="lidar_type" type="int" value="$(arg lidar_type)"/>
         <!-- 需要调整的外参初始值 -->
         <rosparam>
             Rot: [3.3876939304536846e-01, 2.0411991267696605e-02, 9.4064799417643996e-01,
