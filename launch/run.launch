@@ -1,0 +1,6 @@
+<launch>
+    <node pkg="test" type="test_node" name="test_tools"  output="screen" required="true">
+        <param name="csv_path" type="string" value="$(find test)/result/"/>
+    </node>
+    <node name="test_rviz" pkg="rviz" type="rviz" output="log" args="-d $(find test)/launch/show.rviz" />
+ </launch>
