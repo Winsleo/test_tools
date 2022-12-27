@@ -1,8 +1,9 @@
 <launch>
     <!-- 是否保存相机的位姿和图片，用于重建 -->
-    <arg name="save_pose_image" default="false"/>
+    <arg name="save_pose_image" default="true"/>
     <!-- 是否保存点云PCD文件 -->
-    <arg name="save_pcd" default="false"/>
+    <arg name="save_pcd" default="true"/>
+    <arg name="frame_wise" default="true"/>
     <!-- 世界坐标系名称 -->
     <arg name="map_frame_id" default="world"/>
     <!-- IMU坐标系名称 -->
@@ -12,13 +13,13 @@
     <!-- 是否打印点云内容 -->
     <arg name="print_cloud" default="false"/>
     <!-- 雷达类型 ROBOSENSE = 1, VELODYNE=2, OUSTER=3,XYZI=4, XYZINORMAL=5 -->
-    <arg name="lidar_type" default="4"/>
+    <arg name="lidar_type" default="1"/>
     
     <!-- Subscribed topics -->
     <!--雷达点云话题  -->
-    <arg name="pointcloud_topic" default="/pointscloud"/>
+    <arg name="pointcloud_topic" default="/rslidar_points"/>
     <!-- 原始图像话题 -->
-    <arg name="image_topic" default="/image"/>
+    <arg name="image_topic" default="/track_img"/>
     <!-- 压缩图像话题 -->
     <arg name="compressed_topic" default="/flir_adk/image_raw/compressed"/>
     <!-- 发布相机到IMU的坐标转换 -->
@@ -43,7 +44,7 @@
             Trans: [0.16, 0.105, -0.095]
         </rosparam>
     </node>
-    <node pkg="test_tools" type="set_default_param" name="set_default_param"  output="screen" required="true"/>
+    <!-- <node pkg="test_tools" type="set_default_param" name="set_default_param"  output="screen" required="true"/>
     <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find test_tools)/launch/show.rviz" />
-    <node name="reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/>
+    <node name="reconfigure" pkg="rqt_reconfigure" type="rqt_reconfigure"/> -->
  </launch>

@@ -5,6 +5,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include"tools.hpp"
 #include"tools_thread_pool.hpp"
+#include"common_tools.h"
 #include<tf2_ros/transform_broadcaster.h>
 #include<tf2_ros/buffer.h>
 #include<tf2_ros/transform_listener.h>
@@ -35,6 +36,7 @@ int lidar_type;
 bool print_cloud;
 bool save_pose_image;
 bool save_pcd;
+bool frame_wise;
 bool flg_exit = false;
 shared_ptr<pcl::PointCloud<robosense_ros::Point>> pcl_wait_save1;
 shared_ptr<pcl::PointCloud<velodyne_ros::Point>> pcl_wait_save2;
@@ -66,40 +68,86 @@ void lidarCallback(const sensor_msgs::PointCloud2ConstPtr& msg){
         {
             pcl::PointCloud<robosense_ros::Point> laserCloud;
             pcl::fromROSMsg(*msg, laserCloud);
-            *pcl_wait_save1 += laserCloud;
+            if(frame_wise) *pcl_wait_save1 += laserCloud;
+            else{
+                pcl::PCDWriter pcd_writer;
+                stringstream ss;
+                ss.setf(std::ios::fixed);
+                ss.precision(9);
+                ss<<msg->header.stamp.toSec();
+                string file_name(outfile_path+"pcd/"+ss.str()+".pcd");
+                pcd_writer.write(file_name, laserCloud, false);
+            }
             break;
         }
         case VELODYNE:
         {
             pcl::PointCloud<velodyne_ros::Point> laserCloud;
             pcl::fromROSMsg(*msg, laserCloud);
-            *pcl_wait_save2 += laserCloud;
+            if(frame_wise) *pcl_wait_save2 += laserCloud;
+            else{
+                pcl::PCDWriter pcd_writer;
+                stringstream ss;
+                ss.setf(std::ios::fixed);
+                ss.precision(9);
+                ss<<msg->header.stamp.toSec();
+                string file_name(outfile_path+"pcd/"+ss.str()+".pcd");
+                pcd_writer.write(file_name, laserCloud, false);
+            }
             break;
         }
         case OUSTER:
         {
             pcl::PointCloud<ouster_ros::Point> laserCloud;
             pcl::fromROSMsg(*msg, laserCloud);
-            *pcl_wait_save3 += laserCloud;
+            if(frame_wise) *pcl_wait_save3 += laserCloud;
+            else{
+                pcl::PCDWriter pcd_writer;
+                stringstream ss;
+                ss.setf(std::ios::fixed);
+                ss.precision(9);
+                ss<<msg->header.stamp.toSec();
+                string file_name(outfile_path+"pcd/"+ss.str()+".pcd");
+                pcd_writer.write(file_name, laserCloud, false);
+            }
             break;
         }
         case XYZI:
         {
             pcl::PointCloud<pcl::PointXYZI> laserCloud;
             pcl::fromROSMsg(*msg, laserCloud);
-            *pcl_wait_save4 += laserCloud;
+            if(frame_wise) *pcl_wait_save4 += laserCloud;
+            else{
+                pcl::PCDWriter pcd_writer;
+                stringstream ss;
+                ss.setf(std::ios::fixed);
+                ss.precision(9);
+                ss<<msg->header.stamp.toSec();
+                string file_name(outfile_path+"pcd/"+ss.str()+".pcd");
+                pcd_writer.write(file_name, laserCloud, false);
+            }
             break;
         }
         case XYZINORMAL:
         {
             pcl::PointCloud<pcl::PointXYZINormal> laserCloud;
             pcl::fromROSMsg(*msg, laserCloud);
-            *pcl_wait_save5 += laserCloud;
+            if(frame_wise) *pcl_wait_save5 += laserCloud;
+            else{
+                pcl::PCDWriter pcd_writer;
+                stringstream ss;
+                ss.setf(std::ios::fixed);
+                ss.precision(9);
+                ss<<msg->header.stamp.toSec();
+                string file_name(outfile_path+"pcd/"+ss.str()+".pcd");
+                pcd_writer.write(file_name, laserCloud, false);
+            }
             break;
         }
         default:
             break;
         }
+
     }
     if(print_cloud) pointcloud_print(msg, lidar_type, 1000);
 }
@@ -131,9 +179,13 @@ void reconfigure_callback(test_tools::DeltaExtConfig& config) {
 }
 void ImageCallback(const sensor_msgs::ImageConstPtr &msg){
     if(save_pose_image){
-        if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
         cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
         double timestamp = msg->header.stamp.toSec();
+        stringstream ss;
+        ss.setf(std::ios::fixed);
+        ss.precision(9);
+        ss<<timestamp;
+        cv::imwrite( outfile_path+ "image/" + ss.str() + ".jpg", cv_ptr_compressed->image);
         geometry_msgs::TransformStamped transform;
         try
         {
@@ -146,15 +198,18 @@ void ImageCallback(const sensor_msgs::ImageConstPtr &msg){
         }
         (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
         transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
-        cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
     }
 }
 void CompressedCallback(const sensor_msgs::CompressedImageConstPtr &msg)
 {
     if(save_pose_image){
-        if( !tf_buffer->canTransform(map_frame_id, camera_frame_id, msg->header.stamp,ros::Duration(1)) ) return;
         cv_bridge::CvImagePtr cv_ptr_compressed = cv_bridge::toCvCopy(msg,sensor_msgs::image_encodings::BGR8);
         double timestamp = msg->header.stamp.toSec();
+        stringstream ss;
+        ss.setf(std::ios::fixed);
+        ss.precision(9);
+        ss<<timestamp;
+        cv::imwrite( outfile_path+ "image/" + ss.str() + ".jpg", cv_ptr_compressed->image);
         geometry_msgs::TransformStamped transform;
         try
         {
@@ -167,7 +222,6 @@ void CompressedCallback(const sensor_msgs::CompressedImageConstPtr &msg)
         }
         (*outfile)<<std::to_string(timestamp)<<","<<transform.transform.translation.x<<","<<transform.transform.translation.y<<","<<transform.transform.translation.z<<","<<
         transform.transform.rotation.x<<","<<transform.transform.rotation.y<<","<<transform.transform.rotation.z<<","<<transform.transform.rotation.w<<endl;
-        cv::imwrite( outfile_path+ "image/" + std::to_string(timestamp) + ".jpg", cv_ptr_compressed->image);
     }
 }
 
@@ -177,7 +231,7 @@ int main(int argc, char **argv)
 
     ros::init(argc,argv,"test"); 
     ros::NodeHandle nh("~");
-    tf_buffer=make_shared<tf2_ros::Buffer>();
+    tf_buffer=make_shared<tf2_ros::Buffer>(ros::Duration(10));
     tf2_ros::TransformListener tf_listener(*tf_buffer);
     nh.param<string>("map_frame_id",map_frame_id,"map");
     nh.param<string>("camera_frame_id",camera_frame_id,"camera_link");
@@ -187,38 +241,48 @@ int main(int argc, char **argv)
     nh.param<string>("outfile_path",outfile_path,"./");
     nh.param<bool>("save_pose_image", save_pose_image, false);
     nh.param<bool>("save_pcd", save_pcd, false);
+    nh.param<bool>("frame_wise", frame_wise, false);
     nh.param<bool>("print_cloud", print_cloud, false);
     nh.param<int>("lidar_type", lidar_type, 1);
-    if(save_pcd){
-        switch (lidar_type)
-        {
-        case ROBOSENSE:
-        {
-            pcl_wait_save1.reset( new pcl::PointCloud<robosense_ros::Point>() );
-            break;
-        }
-        case VELODYNE:
-        {
-            pcl_wait_save2.reset( new pcl::PointCloud<velodyne_ros::Point>() );
-            break;
-        }
-        case OUSTER:
-        {
-            pcl_wait_save3.reset( new pcl::PointCloud<ouster_ros::Point>() );
-            break;
-        }
-        case XYZI:
-        {
-            pcl_wait_save4.reset( new pcl::PointCloud<pcl::PointXYZI>() );
-            break;
-        }
-        case XYZINORMAL:
-        {
-            pcl_wait_save5.reset( new pcl::PointCloud<pcl::PointXYZINormal>() );
-            break;
-        }
-        default:
-            break;
+    Common_tools::if_not_exist_then_create(outfile_path);
+    if(save_pose_image){
+        string image_path(outfile_path+"image/");
+        Common_tools::if_not_exist_then_create(image_path);
+    }
+    if(save_pcd ){
+        string pcd_path(outfile_path+"pcd/");
+        Common_tools::if_not_exist_then_create(pcd_path);
+        if(!frame_wise){
+            switch (lidar_type)
+            {
+            case ROBOSENSE:
+            {
+                pcl_wait_save1.reset( new pcl::PointCloud<robosense_ros::Point>() );
+                break;
+            }
+            case VELODYNE:
+            {
+                pcl_wait_save2.reset( new pcl::PointCloud<velodyne_ros::Point>() );
+                break;
+            }
+            case OUSTER:
+            {
+                pcl_wait_save3.reset( new pcl::PointCloud<ouster_ros::Point>() );
+                break;
+            }
+            case XYZI:
+            {
+                pcl_wait_save4.reset( new pcl::PointCloud<pcl::PointXYZI>() );
+                break;
+            }
+            case XYZINORMAL:
+            {
+                pcl_wait_save5.reset( new pcl::PointCloud<pcl::PointXYZINormal>() );
+                break;
+            }
+            default:
+                break;
+            }
         }
     }
     outfile = make_shared<std::ofstream>(outfile_path+"pose.csv", std::ios::out | std::ios::trunc);
@@ -237,8 +301,8 @@ int main(int argc, char **argv)
     extrinsic_init.rotate(rot_init);//用旋转矩阵设置欧式变换矩阵的旋转部分
     extrinsic_init.pretranslate(trans_init);//设置欧式变换矩阵的平移部分
     ros::Subscriber lidar_sub = nh.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic, 2, &lidarCallback);
-    ros::Subscriber image_sub = nh.subscribe<sensor_msgs::Image>(image_topic, 50, &ImageCallback);
-    ros::Subscriber compressed_sub = nh.subscribe<sensor_msgs::CompressedImage>(compressed_topic, 50, &CompressedCallback);
+    ros::Subscriber image_sub = nh.subscribe<sensor_msgs::Image>(image_topic, 100, &ImageCallback);
+    ros::Subscriber compressed_sub = nh.subscribe<sensor_msgs::CompressedImage>(compressed_topic, 100, &CompressedCallback);
     //动态参数服务器
 	dynamic_reconfigure::Server<test_tools::DeltaExtConfig> server;
 	dynamic_reconfigure::Server<test_tools::DeltaExtConfig>::CallbackType server_callback = boost::bind(&reconfigure_callback, _1);
@@ -255,7 +319,7 @@ int main(int argc, char **argv)
         rate.sleep();
     }
     /**************** save map ****************/
-    if(save_pcd){
+    if(save_pcd && !frame_wise){
         string file_name = string("scans.pcd");
         string all_points_dir(outfile_path  + file_name);
         pcl::PCDWriter pcd_writer;
@@ -264,27 +328,27 @@ int main(int argc, char **argv)
         {
         case ROBOSENSE:
         {
-            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save1);
+            pcd_writer.write(all_points_dir, *pcl_wait_save1, false);
             break;
         }
         case VELODYNE:
         {
-            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save2);
+            pcd_writer.write(all_points_dir, *pcl_wait_save2, false);
             break;
         }
         case OUSTER:
         {
-            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save3);
+            pcd_writer.write(all_points_dir, *pcl_wait_save3, false);
             break;
         }
         case XYZI:
         {
-            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save4);
+            pcd_writer.write(all_points_dir, *pcl_wait_save4, false);
             break;
         }
         case XYZINORMAL:
         {
-            pcd_writer.writeBinary(all_points_dir, *pcl_wait_save5);
+            pcd_writer.write(all_points_dir, *pcl_wait_save5, false);
             break;
         }
         default:
