@@ -1,6 +1,14 @@
 <launch>
+    <arg name="path_topic" default="/path"/>
+    <arg name="read_pose_from_csv" default="false"/>
+    <arg name="print_pose_from_path" default="true"/>
+
     <node pkg="test" type="test_node" name="test_tools"  output="screen" required="true">
         <param name="csv_path" type="string" value="$(find test)/result/"/>
+        <param name="path_topic" type="string" value="$(arg path_topic)"/>
+        <param name="read_pose_from_csv" type="bool" value="$(arg read_pose_from_csv)"/>
+        <param name="print_pose_from_path" type="bool" value="$(arg print_pose_from_path)"/>
+
     </node>
-    <node name="test_rviz" pkg="rviz" type="rviz" output="log" args="-d $(find test)/launch/show.rviz" />
+    <node if="$(arg read_pose_from_csv)" name="test_rviz" pkg="rviz" type="rviz" output="log" args="-d $(find test)/launch/show.rviz" />
  </launch>
