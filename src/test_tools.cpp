@@ -2,10 +2,6 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <tf2_ros/transform_broadcaster.h>
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
-
 #include <geometry_msgs/TransformStamped.h>
 #include <nav_msgs/Odometry.h>
 // TimeSyncronizer headers
@@ -18,7 +14,6 @@
 #include "common_tools.h"
 using namespace std;
 
-std::shared_ptr<tf2_ros::Buffer> tf_buffer;
 std::shared_ptr<std::ofstream> outfile;
 string pointcloud_topic,odom_topic,outfile_path;
 int lidar_type;
@@ -152,7 +147,7 @@ inline void SaveOdom(const nav_msgs::OdometryConstPtr &msg)
 {
     (*outfile)<<msg->pose.pose.position.x<<" "\
               <<msg->pose.pose.position.y<<" "\
-              <<msg->pose.pose.position.z<<","\
+              <<msg->pose.pose.position.z<<" "\
               <<msg->pose.pose.orientation.w<<" "\
               <<msg->pose.pose.orientation.x<<" "\
               <<msg->pose.pose.orientation.y<<" "\
@@ -184,8 +179,6 @@ int main(int argc, char **argv)
 	std::cout.precision(20);//设置输出精度
     ros::init(argc,argv,"test"); 
     ros::NodeHandle nh("~");
-    tf_buffer=make_shared<tf2_ros::Buffer>(ros::Duration(10));
-    tf2_ros::TransformListener tf_listener(*tf_buffer);
     nh.param<bool>("save_odom", save_odom, false);
     nh.param<bool>("save_pcd", save_pcd, false);
     nh.param<bool>("pcd_name_stamp", pcd_name_stamp, false);
@@ -238,11 +231,11 @@ int main(int argc, char **argv)
     if (save_pcd && save_odom) {
         filterSubOdom = std::make_shared<message_filters::Subscriber<nav_msgs::Odometry>>(nh, odom_topic, 1000, ros::TransportHints().tcpNoDelay());
         filterSubCloud = std::make_shared<message_filters::Subscriber<sensor_msgs::PointCloud2>>(nh, pointcloud_topic, 1000, ros::TransportHints().tcpNoDelay());
-        odom_cloud_sync = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(1000), *filterSubOdom, *filterSubCloud); // 1000是消息队列长度
+        odom_cloud_sync = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(100), *filterSubOdom, *filterSubCloud); // 1000是消息队列长度
         odom_cloud_sync->registerCallback(boost::bind(&SyncedCallback, _1, _2));
     }
     else if (save_pcd) {
-        lidarSub = std::make_shared<ros::Subscriber>(nh.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic, 2, &LidarCallback));
+        lidarSub = std::make_shared<ros::Subscriber>(nh.subscribe<sensor_msgs::PointCloud2>(pointcloud_topic, 100, &LidarCallback));
     }
     else {
         odomSub = std::make_shared<ros::Subscriber>(nh.subscribe<nav_msgs::Odometry>(odom_topic, 100, &OdomCallback));

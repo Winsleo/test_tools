@@ -14,9 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   nav_msgs
-  tf2_ros
-  tf2
-  message_generation
+  message_filters
   pcl_ros
 )
 find_package(PCL REQUIRED)
