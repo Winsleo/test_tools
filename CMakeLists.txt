@@ -14,20 +14,12 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   nav_msgs
-  cv_bridge
   tf2_ros
   tf2
   message_generation
-  dynamic_reconfigure
   pcl_ros
 )
-find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
-find_package(Eigen3 REQUIRED)
-#add dynamic reconfigure api
-generate_dynamic_reconfigure_options(
- cfg/DeltaExt.cfg
-)
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -55,13 +47,10 @@ include_directories(
     include
     ${catkin_INCLUDE_DIRS}
     ${PCL_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIR}
-    ${OpenCV_INCLUDE_DIRS}
 )
 
 link_directories(
     ${PCL_LIBRARY_DIRS}
-    ${OpenCV_LIBRARY_DIRS}
 )
 
 
@@ -75,21 +64,8 @@ link_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(${PROJECT_NAME}_node src/test_tools.cpp)
-add_dependencies(${PROJECT_NAME}_node 
-${catkin_EXPORTED_TARGETS}
-${PROJECT_NAME}_gencfg)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}_node
-  ${catkin_LIBRARIES}
-  ${PCL_LIBRARIES}
-)
-
-add_executable(set_default_param src/set_default_param.cpp)
-add_dependencies(set_default_param 
-${catkin_EXPORTED_TARGETS}
-${PROJECT_NAME}_gencfg)
-## Specify libraries to link a library or executable target against
-target_link_libraries(set_default_param
   ${catkin_LIBRARIES}
   ${PCL_LIBRARIES}
 )

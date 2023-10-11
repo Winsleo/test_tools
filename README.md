@@ -26,10 +26,5 @@ catkin_make
 roslaunch test_tools run.launch
 ```
 注意修改launch文件中的参数以适配
-   - map_frame_id: 世界坐标系名称
-   - IMU_frame_id: IMU坐标系名称
-   - camera_frame_id: 相机坐标系名称 
    - pointcloud_topic: 雷达点云话题
-   - image_topic： 原始图像话题
-   - compressed_topic: 压缩格式图像话题，与原始图像话题只需其一即可
-   - static_transform_publisher节点发布相机坐标系到IMU坐标系的坐标转换
+   - odom_topic： 里程计话题

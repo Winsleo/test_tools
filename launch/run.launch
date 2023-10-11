@@ -1,6 +1,4 @@
 <launch>
-    <!-- 是否保存相机的位姿和图片，用于重建 -->
-    <arg name="save_pose_image" default="false"/>
     <!-- 是否保存点云PCD文件 -->
     <arg name="save_odom" default="true"/>
     <!-- 是否保存点云PCD文件 -->
@@ -9,12 +7,6 @@
     <arg name="pcd_name_stamp" default="false"/>
     <!-- 是否逐帧保存点云文件 -->
     <arg name="frame_wise" default="true"/>
-    <!-- 世界坐标系名称 -->
-    <arg name="map_frame_id" default="world"/>
-    <!-- IMU坐标系名称 -->
-    <arg name="IMU_frame_id" default="aft_mapped"/>
-    <!-- 相机坐标系名称 -->
-    <arg name="camera_frame_id" default="camera_link"/>
     <!-- 是否打印点云内容 -->
     <arg name="print_cloud" default="false"/>
     <!-- 雷达类型 ROBOSENSE = 1, VELODYNE=2, OUSTER=3,XYZI=4, XYZINORMAL=5 -->
@@ -22,39 +14,19 @@
     <!-- Subscribed topics -->
     <!--雷达点云话题  -->
     <arg name="pointcloud_topic" default="/cloud_registered_body"/>
-    <!-- 原始图像话题 -->
-    <arg name="image_topic" default="/track_img"/>
-    <!-- 压缩图像话题 -->
-    <arg name="compressed_topic" default="/flir_adk/image_raw/compressed"/>
     <!-- 里程计话题 -->
     <arg name="odom_topic" default="/Odometry"/>
 
-    <!-- 发布相机到IMU的坐标转换 -->
-    <node pkg="tf2_ros" name="tf_pub" type="static_transform_publisher" args="0.20, 0.15, 0.06 2.06298 -3.14159  1.56207 $(arg IMU_frame_id) $(arg camera_frame_id)" />
-
     <node pkg="test_tools" type="test_tools_node" name="test_tools"  output="screen" required="true">
-        <param name="save_pose_image" type="bool" value="$(arg save_pose_image)"/>
         <param name="save_odom" type="bool" value="$(arg save_odom)"/>
         <param name="save_pcd" type="bool" value="$(arg save_pcd)"/>
         <param name="pcd_name_stamp" type="bool" value="$(arg pcd_name_stamp)"/>
         <param name="frame_wise" type="bool" value="$(arg frame_wise)"/>
-        <param name="map_frame_id" type="string" value= "$(arg map_frame_id)" />
-        <param name="IMU_frame_id" type="string" value= "$(arg IMU_frame_id)" />
-        <param name="camera_frame_id" type="string" value= "$(arg camera_frame_id)" />
         <param name="print_cloud" type="bool" value="$(arg print_cloud)"/>
         <param name="lidar_type" type="int" value="$(arg lidar_type)"/>
         <param name="pointcloud_topic" type="string" value= "$(arg pointcloud_topic)" />
-        <param name="image_topic" type="string" value= "$(arg image_topic)" />
-        <param name="compressed_topic" type="string" value= "$(arg compressed_topic)" />
         <param name="odom_topic" type="string" value= "$(arg odom_topic)" />
         <param name="outfile_path" type="string" value="$(find test_tools)/result/"/>
-        <!-- 需要调整的外参初始值 -->
-        <rosparam>
-            Rot: [3.3876939304536846e-01, 2.0411991267696605e-02, 9.4064799417643996e-01,
-                  -9.4086852267540699e-01, 8.7436721632269121e-03, 3.3865907818291047e-01,
-                  -1.3120115354801065e-03, -9.9975341900370074e-01, 2.2167088580625049e-02]
-            Trans: [0.16, 0.105, -0.095]
-        </rosparam>
     </node>
     <!-- <node pkg="test_tools" type="set_default_param" name="set_default_param"  output="screen" required="true"/>
     <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find test_tools)/launch/show.rviz" />
