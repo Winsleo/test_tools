@@ -10,8 +10,10 @@ add_definitions(-DROOT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
+  std_msgs
   sensor_msgs
   geometry_msgs
+  nav_msgs
   cv_bridge
   tf2_ros
   tf2
