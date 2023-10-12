@@ -259,7 +259,7 @@ inline void SaveOdom(const nav_msgs::OdometryConstPtr &msg)
 {
     (*outfile)<<msg->pose.pose.position.x<<" "\
               <<msg->pose.pose.position.y<<" "\
-              <<msg->pose.pose.position.z<<","\
+              <<msg->pose.pose.position.z<<" "\
               <<msg->pose.pose.orientation.w<<" "\
               <<msg->pose.pose.orientation.x<<" "\
               <<msg->pose.pose.orientation.y<<" "\
