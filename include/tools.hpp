@@ -7,6 +7,8 @@
 #include<sensor_msgs/PointCloud2.h>
 #include<sensor_msgs/point_cloud2_iterator.h>
 #include<pcl/point_types.h>
+#include<pcl_conversions/pcl_conversions.h>
+
 #define VEC3_FROM_ARRAY(v)  v[0],v[1],v[2]
 #define MAT3_FROM_ARRAY(v)  v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8]
 #define MAT4_FROM_ARRAY(v)  v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7],v[8],v[9],v[10].v[11],v[12],v[13],v[14],v[15]
@@ -113,7 +115,7 @@ inline Eigen::Matrix3d euler2matrix(const Eigen::Matrix<T,3,1> &eulerAngles){
 
 void pointcloud_print(const sensor_msgs::PointCloud2ConstPtr& msg, int cloudType,int filterNum){
     scope_color(ANSI_COLOR_CYAN_BOLD);
-    std::cout<<msg->header.frame_id<<endl;
+    std::cout<<"frame_id:"<<msg->header.frame_id << "  header.stamp:" << msg->header.stamp.toSec()<<endl;
     if(msg->is_bigendian) std::cout<<"bigendian"<<endl;
     if(msg->is_dense) std::cout<<"dense"<<endl;
     printf("height=%u width=%u fields_num=%u point_step=%u row_step=%u data.size()=%u\n",msg->height, msg->width, msg->fields.size(), msg->point_step, msg->row_step, msg->data.size());
@@ -136,20 +138,14 @@ void pointcloud_print(const sensor_msgs::PointCloud2ConstPtr& msg, int cloudType
     case ROBOSENSE:
     {
         //msg type : robosense 
-        sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg,"x");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg,"y");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg,"z");
-        sensor_msgs::PointCloud2ConstIterator<uint8_t> iter_intensity(*msg,"intensity");
-        sensor_msgs::PointCloud2ConstIterator<uint16_t> iter_ring(*msg,"ring");
-        sensor_msgs::PointCloud2ConstIterator<double> iter_time(*msg,"timestamp");
-        std::cout<<"---------begin----------"<<std::endl;
-        double begin_time = *iter_time;
-        for (int i=0; iter_x != iter_x.end(); ++iter_x,++iter_y,++iter_z,++iter_ring,++iter_time,i++)
+        pcl::PointCloud<robosense_ros::Point>::Ptr pcl_orig(new pcl::PointCloud<robosense_ros::Point>);
+        pcl::fromROSMsg(*msg, *pcl_orig);
+        std::cout<<"---------begin----------"<<endl;
+        for (size_t i = 0; i < pcl_orig->size(); i++)
         {
-            if(*iter_time < begin_time) std::cerr<<"error"<<endl;
-            if(i % filterNum == 0)//降采样
+            if(i % 100 == 0)//降采样
             {
-                printf("x:%f y:%f z:%f intensity:%u ring:%u time:%f\n", *iter_x, *iter_y, *iter_z, *iter_intensity, *iter_ring, *iter_time);
+                printf("x:%f y:%f z:%f intensity:%u ring:%u time:%f \n", pcl_orig->points[i].x, pcl_orig->points[i].y, pcl_orig->points[i].z, pcl_orig->points[i].intensity, pcl_orig->points[i].ring, pcl_orig->points[i].timestamp);
             }
         }
         std::cout<<"---------end----------"<<endl;
@@ -160,22 +156,15 @@ void pointcloud_print(const sensor_msgs::PointCloud2ConstPtr& msg, int cloudType
     case VELODYNE:
     {
         //msg type : velodyne 
-        sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg,"x");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg,"y");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg,"z");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg,"intensity");
-        sensor_msgs::PointCloud2ConstIterator<uint16_t> iter_ring(*msg,"ring");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_time(*msg,"time");
+        pcl::PointCloud<velodyne_ros::Point>::Ptr pcl_orig(new pcl::PointCloud<velodyne_ros::Point>);
+        pcl::fromROSMsg(*msg, *pcl_orig);
         std::cout<<"---------begin----------"<<endl;
-        double begin_time = *iter_time;
-        for (int i=0; iter_x != iter_x.end(); ++iter_x,++iter_y,++iter_z,++iter_time,i++)
+        for (size_t i = 0; i < pcl_orig->size(); i++)
         {
-            if(*iter_time < begin_time) std::cerr<<"error"<<endl;
-            if(i % filterNum == 0)//降采样
+            if(i % 100 == 0)//降采样
             {
-                printf("x:%f y:%f z:%f intensity:%f ring:%u time:%f", *iter_x, *iter_y, *iter_z, *iter_intensity, *iter_ring, *iter_time);
+                printf("x:%f y:%f z:%f intensity:%f time:%f ring:%u \n", pcl_orig->points[i].x, pcl_orig->points[i].y, pcl_orig->points[i].z, pcl_orig->points[i].intensity, pcl_orig->points[i].time, pcl_orig->points[i].ring);
             }
-            
         }
         std::cout<<"---------end----------"<<endl;
         //msg type : velodyne
@@ -183,18 +172,15 @@ void pointcloud_print(const sensor_msgs::PointCloud2ConstPtr& msg, int cloudType
     }
     case XYZINORMAL:
     {
-        // msg type : pcl::PointCloud< PointPointXYZINormal>
-        sensor_msgs::PointCloud2ConstIterator<float> iter_x(*msg,"x");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_y(*msg,"y");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_z(*msg,"z");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_intensity(*msg,"intensity");
-        sensor_msgs::PointCloud2ConstIterator<float> iter_curve(*msg,"curvature");
+        // msg type : pcl::PointCloud< pcl::PointXYZINormal>
+        pcl::PointCloud<pcl::PointXYZINormal>::Ptr pcl_orig(new pcl::PointCloud<pcl::PointXYZINormal>);
+        pcl::fromROSMsg(*msg, *pcl_orig);
         std::cout<<"---------begin----------"<<endl;
-        for (int i=0; iter_x != iter_x.end(); ++iter_x,++iter_y,++iter_z,++iter_curve,i++)
+        for (size_t i = 0; i < pcl_orig->size(); i++)
         {
             if(i%100==0)//每100个点输出一个
             {
-                printf("x:%f y:%f z:%f intensity:%f curvature:%f\n", *iter_x, *iter_y, *iter_z, *iter_intensity, *iter_curve);
+                printf("x:%f y:%f z:%f intensity:%f curvature:%f \n", pcl_orig->points[i].x, pcl_orig->points[i].y, pcl_orig->points[i].z, pcl_orig->points[i].intensity, pcl_orig->points[i].curvature);
             }
         }
         std::cout<<"---------end----------"<<endl;
